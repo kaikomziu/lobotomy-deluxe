@@ -42,6 +42,8 @@ const ABNORMALITIES = [
     desc: '文字盤の代わりに大きな目玉がついた壁掛け時計。秒針の音に合わせて瞬きする。' },
   { id: 'laughbox', name: '笑う郵便受け', tier: 1, types: ['attachment', 'instinct'],
     desc: '手紙を入れるとくすくすと笑い声を漏らす郵便受け。中身は誰も見たことがない。' },
+  { id: 'singwash', name: '歌う洗濯機', tier: 1, types: ['instinct', 'attachment'],
+    desc: '脱水のたびに古い歌謡曲を口ずさむ洗濯機。歌詞は誰も聞き取れたことがない。' },
 
   // --- TETH (tier2) ---
   { id: 'cranes', name: '無数の折り紙鶴', tier: 2, types: ['insight', 'attachment'],
@@ -52,6 +54,8 @@ const ABNORMALITIES = [
     desc: '天井に張り付くように佇む子供の影。床を歩くエージェントを静かに見下ろしている。' },
   { id: 'throatless', name: '喉なし歌手', tier: 2, types: ['attachment', 'repression'],
     desc: '喉のない姿でありながら美しい歌声を響かせる歌手。歌が止むと室温が下がる。' },
+  { id: 'bentcross', name: '曲がった十字架', tier: 2, types: ['repression', 'insight'],
+    desc: '祈るたびに少しずつ角度を変える古い十字架。まっすぐに戻したことは一度もない。' },
 
   // --- HE (tier3) ---
   { id: 'nurse1000', name: '千の腕を持つ看護師', tier: 3, types: ['instinct', 'repression'],
@@ -60,18 +64,24 @@ const ABNORMALITIES = [
     desc: '光源の位置を無視して壁や天井を這い回る人型の影。輪郭だけが妙にはっきりしている。' },
   { id: 'emptycrown', name: '空になった王冠', tier: 3, types: ['attachment', 'repression'],
     desc: '誰も被っていないのに、たまに傾いている金属の王冠。近づく者に「跪け」と囁く。' },
+  { id: 'secondheart', name: '第二の心臓', tier: 3, types: ['instinct', 'attachment'],
+    desc: 'ガラス容器の中で単独で鼓動を続ける心臓。動悸のリズムは、覗き込んだ者の心拍に同調する。' },
 
   // --- WAW (tier4) ---
   { id: 'redraingirl', name: '赤い雨を降らす少女', tier: 4, types: ['instinct', 'attachment'],
     desc: '傘も差さずに佇む少女。その周囲だけ、ぽつぽつと赤い雨が降り続けている。' },
   { id: 'banquet', name: '終わらない晩餐会', tier: 4, types: ['insight', 'attachment'],
     desc: '豪奢な食卓に着いた招待客たちは、何百年も同じ乾杯を続けているように見える。' },
+  { id: 'mirrorsisters', name: '鏡写しの姉妹', tier: 4, types: ['insight', 'repression'],
+    desc: '一枚の姿見の中に住む双子の姉妹。片方が笑えば、もう片方は必ず正反対の表情をする。' },
 
   // --- ALEPH (tier5) ---
   { id: 'doorbeyond', name: '扉の向こうの扉', tier: 5, types: ['instinct', 'insight', 'attachment', 'repression'],
     desc: '開けても開けても、その先にまったく同じ扉が続いている。ノックの音は内側から聞こえる。' },
   { id: 'blankbible', name: '白紙の聖書', tier: 5, types: ['instinct', 'insight', 'attachment', 'repression'],
     desc: '一文字も書かれていない聖典。読もうとした者は、代わりに自分の記憶を朗読し始める。' },
+  { id: 'namebook', name: '名前を食べる本', tier: 5, types: ['instinct', 'insight', 'attachment', 'repression'],
+    desc: '開いたページに自分の名前を見つけた者は、その名を静かに忘れていく分厚い書物。' },
 ];
 
 // tierごとの基礎パラメータ(difficulty=必要熟練度の目安, energy=1回成功あたりの供給量,
@@ -129,7 +139,7 @@ const ACHIEVEMENTS = [
 
   { id: 'containUnique5',  name: '収容管理官',   desc: '異なるアブノーマリティを5種類収容する',  check: a => a.uniqueContainedCount >= 5 },
   { id: 'containUnique10', name: 'コレクター',   desc: '異なるアブノーマリティを10種類収容する', check: a => a.uniqueContainedCount >= 10 },
-  { id: 'containAll',      name: 'フルコンプリート', desc: '全15種のアブノーマリティを収容する', check: a => a.uniqueContainedCount >= 15 },
+  { id: 'containAll',      name: 'フルコンプリート', desc: '全20種のアブノーマリティを収容する', check: a => a.uniqueContainedCount >= 20 },
 
   { id: 'aleph1', name: 'ALEPH解禁',   desc: 'ALEPH等級のアブノーマリティを初めて収容する', check: a => a.containedTierMax >= 5 },
   { id: 'aleph3', name: 'ALEPH管理者', desc: 'ALEPH等級を3体同時に収容する',      check: a => a.alephConcurrent >= 3 },

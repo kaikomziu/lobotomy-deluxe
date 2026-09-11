@@ -10,8 +10,14 @@ const MAX_ASSIGN_PER_CELL = 3;
 let state = null;
 let meta = null; // 永続データ(実績・累計統計)
 let idSeq = 1;
+let fxQueue = []; // UI側の演出(シェイク/フラッシュ等)への一方向イベントキュー。永続化しない。
 
 function nextId() { return idSeq++; }
+function fx(type, payload) { fxQueue.push({ type, payload }); }
+function flushFx() {
+  if (window.UIEffects && fxQueue.length) window.UIEffects.consume(fxQueue);
+  fxQueue = [];
+}
 
 // ---------- 永続メタデータ ----------
 function loadMeta() {
@@ -167,7 +173,7 @@ function addLog(s, msg) {
 // ---------- 割り当て操作 ----------
 function selectEmployee(empId) {
   if (state.selectedEmployeeId === empId) { state.selectedEmployeeId = null; }
-  else { state.selectedEmployeeId = empId; }
+  else { state.selectedEmployeeId = empId; window.Sound && Sound.select(); }
   render();
 }
 
@@ -187,6 +193,7 @@ function toggleAssign(cellId) {
   if (cell.assigned.includes(empId)) {
     cell.assigned = cell.assigned.filter(id => id !== empId);
     state.selectedEmployeeId = null;
+    window.Sound && Sound.unassign();
     render();
     return;
   }
@@ -196,6 +203,7 @@ function toggleAssign(cellId) {
   if (!cell.breached && cell.assigned.length >= MAX_ASSIGN_PER_CELL) return;
   cell.assigned.push(empId);
   state.selectedEmployeeId = null;
+  window.Sound && Sound.assign();
   render();
 }
 
@@ -227,7 +235,13 @@ function nextPhase() {
 
   checkSurvivors();
   checkGameOverConditions();
-  if (state.gameOver) { finalizeRun(); render(); return; }
+  if (state.gameOver) {
+    window.Sound && Sound.gameOver();
+    finalizeRun();
+    render();
+    flushFx();
+    return;
+  }
 
   state.phase++;
   if (state.phase > PHASES_PER_DAY) {
@@ -235,6 +249,7 @@ function nextPhase() {
   }
   runAchievementCheck();
   render();
+  flushFx();
 }
 
 // 作業結果はGood(◎)/Normal(○)/Bad(×)の3段階(本家のワークエンド判定を踏襲)
@@ -266,6 +281,8 @@ function resolveWorkPhase(cell) {
       }
       emp.sp = clamp(emp.sp + 3, 0, emp.maxSp);
       addLog(state, `◎ ${emp.name}が「${abno.name}」の作業(${wt.icon}${wt.label})でGoodエンド。+${gained}`);
+      window.Sound && Sound.good();
+      fx('float', { cellId: cell.id, text: `◎+${gained}`, cls: 'fx-good' });
     } else if (outcome === 'normal') {
       const gained = p.energy;
       state.energy[type] += gained;
@@ -277,18 +294,24 @@ function resolveWorkPhase(cell) {
       }
       emp.sp = clamp(emp.sp - 2, 0, emp.maxSp);
       addLog(state, `○ ${emp.name}が「${abno.name}」の作業(${wt.icon}${wt.label})でNormalエンド。+${gained}`);
+      window.Sound && Sound.normal();
+      fx('float', { cellId: cell.id, text: `○+${gained}`, cls: 'fx-normal' });
     } else {
       emp.sp = clamp(emp.sp - 10, 0, emp.maxSp);
       const counterLossChance = 15 + abno.tier * 5;
       const hurtRoll = Math.random() * 100;
+      window.Sound && Sound.bad();
+      fx('shake', { cellId: cell.id });
       if (hurtRoll < counterLossChance) {
         cell.counter--;
         const dmg = 8 + abno.tier * 4;
         emp.hp = clamp(emp.hp - dmg, 0, emp.maxHp);
         emp.sp = clamp(emp.sp - 10, 0, emp.maxSp);
         addLog(state, `× ${emp.name}が「${abno.name}」の作業でBadエンド。封印カウンターが減少した。(残り${Math.max(cell.counter,0)}, HP-${dmg})`);
+        fx('float', { cellId: cell.id, text: '×カウンター減少', cls: 'fx-bad' });
       } else {
         addLog(state, `× ${emp.name}が「${abno.name}」の作業でBadエンドに終わった。`);
+        fx('float', { cellId: cell.id, text: '×', cls: 'fx-bad' });
       }
     }
 
@@ -307,6 +330,9 @@ function triggerBreach(cell) {
   addLog(state, `【警報】「${abno.name}」が収容違反(脱走)を起こしました！`);
   const key = abno.id;
   state.stats.breachCountByAbno[key] = (state.stats.breachCountByAbno[key] || 0) + 1;
+  window.Sound && Sound.breachTrigger();
+  fx('shake', { cellId: cell.id, big: true });
+  fx('screenFlash', { color: 'red' });
 }
 
 function resolveBreachPhase(cell) {
@@ -327,11 +353,14 @@ function resolveBreachPhase(cell) {
           if (emp.combat > meta.maxCombatSeen) meta.maxCombatSeen = emp.combat;
         }
         addLog(state, `${emp.name}が「${abno.name}」の鎮圧に成功した！`);
+        window.Sound && Sound.suppressSuccess();
       } else {
         const dmg = Math.round(p.breachPower * 0.5);
         emp.hp = clamp(emp.hp - dmg, 0, emp.maxHp);
         emp.sp = clamp(emp.sp - 15, 0, emp.maxSp);
         addLog(state, `${emp.name}が鎮圧に失敗し「${abno.name}」から反撃を受けた。(HP-${dmg})`);
+        window.Sound && Sound.suppressFail();
+        fx('shake', { cellId: cell.id });
       }
     });
     cell.breachProgress += successes;
@@ -343,6 +372,7 @@ function resolveBreachPhase(cell) {
       state.stats.breachSuppressedThisRun++;
       meta.totalBreachSuppressed++;
       addLog(state, `「${abno.name}」の再収容に成功しました。`);
+      fx('screenFlash', { color: 'green' });
     }
   } else {
     const idle = state.employees.filter(e => e.alive && !e.resting && !isEmployeeAssignedSomewhere(e.id));
@@ -353,6 +383,7 @@ function resolveBreachPhase(cell) {
       victim.hp = clamp(victim.hp - dmg, 0, victim.maxHp);
       victim.sp = clamp(victim.sp - 10, 0, victim.maxSp);
       addLog(state, `【襲撃】「${abno.name}」が${victim.name}を襲撃した！(HP-${dmg})`);
+      window.Sound && Sound.suppressFail();
     }
   }
 }
@@ -362,6 +393,7 @@ function checkSurvivors() {
   state.employees.forEach(emp => {
     if (emp.alive && emp.hp <= 0) {
       emp.alive = false;
+      window.Sound && Sound.death();
       state.stats.deathsThisRun++;
       meta.totalDeaths++;
       addLog(state, `【殉職】${emp.name}が職務中に死亡しました。`);
@@ -407,8 +439,8 @@ function endDay() {
   report.coinGained = dayCoin;
   addLog(state, `【日次決算】Day${state.day}終了。信頼度:${state.reputation} / 収入+${dayCoin}エンケファリン`);
 
-  if (report.allMet) { state.stats.quotaStreak++; }
-  else { state.stats.quotaStreak = 0; }
+  if (report.allMet) { state.stats.quotaStreak++; window.Sound && Sound.dayEndGood(); }
+  else { state.stats.quotaStreak = 0; window.Sound && Sound.dayEndBad(); }
 
   // リセット
   WORKTYPES.forEach(w => { state.energy[w.key] = 0; });
@@ -456,8 +488,10 @@ function hireEmployee() {
   state.stats.hiresThisRun++;
   meta.totalHires++;
   addLog(state, `【採用】${emp.name}が新たに着任しました。`);
+  window.Sound && Sound.hire();
   runAchievementCheck();
   render();
+  flushFx();
 }
 
 function restEmployee(empId) {
@@ -473,6 +507,7 @@ function restEmployee(empId) {
   state.stats.restsThisRun++;
   meta.totalRests++;
   addLog(state, `【厚生】${emp.name}が休養処置を受け、心身ともに回復した。`);
+  window.Sound && Sound.rest();
   render();
 }
 
@@ -481,6 +516,7 @@ function retireGame() {
   state.gameOver = true;
   state.endReason = 'retire';
   state.stats.retired = true;
+  window.Sound && Sound.gameOver();
   finalizeRun();
   render();
 }
@@ -537,6 +573,7 @@ function runAchievementCheck() {
   // uniqueContainedを永続化
   state.cells.forEach(c => { if (c.abno && !meta.uniqueContained.includes(c.abno.id)) meta.uniqueContained.push(c.abno.id); });
 
+  const before = newlyUnlocked.length;
   ACHIEVEMENTS.forEach(a => {
     if (meta.unlocked.includes(a.id)) return;
     let ok = false;
@@ -546,7 +583,7 @@ function runAchievementCheck() {
       newlyUnlocked.push(a);
     }
   });
-  if (newlyUnlocked.length > 0) saveMeta();
+  if (newlyUnlocked.length > before) { window.Sound && Sound.achievement(); saveMeta(); }
 }
 
 // ---------- セーブ/ロード ----------

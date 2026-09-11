@@ -70,20 +70,42 @@ function render() {
 
 function renderBreachAlert() {
   const banner = el('breach-alert');
+  const vignette = el('breach-vignette');
   const breached = state.cells.filter(c => c.abno && c.breached);
   if (breached.length === 0) {
     banner.hidden = true;
+    if (vignette) vignette.hidden = true;
+    window.Sound && Sound.stopSiren();
     return;
   }
   banner.hidden = false;
   banner.innerHTML = `⚠ 収容違反発生中: ${breached.map(c => esc(c.abno.name)).join('、')}`;
+  if (vignette) vignette.hidden = false;
+  window.Sound && Sound.startSiren();
+}
+
+// 数値をアニメーションさせながら更新する(段の変化を視覚的に強調)
+function tweenNumber(elem, to) {
+  if (!elem) return;
+  const from = parseFloat(elem.dataset.tweenVal || elem.textContent) || 0;
+  elem.dataset.tweenVal = to;
+  if (from === to) { elem.textContent = to; return; }
+  const start = performance.now();
+  const dur = 350;
+  function step(now) {
+    const t = Math.min(1, (now - start) / dur);
+    const val = Math.round(from + (to - from) * t);
+    elem.textContent = val;
+    if (t < 1 && Number(elem.dataset.tweenVal) === to) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
 }
 
 function renderHeader() {
-  el('stat-day').textContent = state.day;
+  tweenNumber(el('stat-day'), state.day);
   el('stat-phase').textContent = `${state.phase} / ${PHASES_PER_DAY}`;
-  el('stat-reputation').textContent = state.reputation;
-  el('stat-coin').textContent = state.coin;
+  tweenNumber(el('stat-reputation'), state.reputation);
+  tweenNumber(el('stat-coin'), state.coin);
 
   const repBar = el('reputation-bar-fill');
   repBar.style.width = clamp(state.reputation / 150 * 100, 0, 100) + '%';
@@ -124,6 +146,7 @@ function renderCells() {
 
     const div = document.createElement('div');
     div.className = 'cell';
+    div.dataset.cellId = cell.id;
     if (!cell.abno) {
       div.classList.add('cell-empty');
       div.innerHTML = `<div class="cell-empty-label">空室</div>`;
@@ -297,3 +320,40 @@ function computeGrade() {
   if (score >= 30) return 'D';
   return 'E';
 }
+
+// ---------- 演出エフェクト(シェイク/フローティングテキスト/画面フラッシュ) ----------
+function flashScreen(color) {
+  const div = document.createElement('div');
+  div.className = 'screen-flash screen-flash-' + color;
+  document.body.appendChild(div);
+  setTimeout(() => div.remove(), 450);
+}
+
+window.UIEffects = {
+  consume(queue) {
+    queue.forEach(evt => {
+      if (evt.type === 'shake') {
+        const target = document.querySelector(`[data-cell-id="${evt.payload.cellId}"]`);
+        if (target) {
+          const cls = evt.payload.big ? 'fx-shake-big' : 'fx-shake';
+          target.classList.add(cls);
+          setTimeout(() => target.classList.remove(cls), 500);
+        }
+      } else if (evt.type === 'float') {
+        const target = document.querySelector(`[data-cell-id="${evt.payload.cellId}"]`);
+        if (target) {
+          const rect = target.getBoundingClientRect();
+          const span = document.createElement('div');
+          span.className = 'fx-float ' + (evt.payload.cls || '');
+          span.textContent = evt.payload.text;
+          span.style.left = (rect.left + rect.width / 2 + (Math.random() * 36 - 18)) + 'px';
+          span.style.top = (rect.top + 12) + 'px';
+          document.body.appendChild(span);
+          setTimeout(() => span.remove(), 1100);
+        }
+      } else if (evt.type === 'screenFlash') {
+        flashScreen(evt.payload.color);
+      }
+    });
+  },
+};
