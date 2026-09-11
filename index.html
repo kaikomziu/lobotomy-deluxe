@@ -55,6 +55,8 @@
     </div>
   </header>
 
+  <div id="breach-alert" hidden></div>
+
   <div id="quota-panel">
     <div class="panel-title">本日のノルマ(全達成で信頼度UP / 未達成でDOWN)</div>
     <div id="quota-list"></div>
@@ -63,7 +65,7 @@
   <main id="layout">
     <section class="panel">
       <div class="panel-header">
-        <h2>収容施設 - エージェントを選んでからセルをクリックして割り当て</h2>
+        <h2>施設フロア図 - エージェントを選んでからセルをクリックして割り当て</h2>
       </div>
       <div id="cells-grid"></div>
 
@@ -97,11 +99,11 @@
 <div class="modal-overlay" id="help-modal">
   <div class="modal-box help-body">
     <h2>遊び方</h2>
-    <p>あなたは謎の施設の管理官です。収容されている「アブノーマリティ」にエージェントを割り当てて作業させ、4種類の作業エネルギー(本能・洞察・愛着・抑圧)を集めます。</p>
+    <p>あなたは謎の施設の管理官です。地下フロアに収容されている「アブノーマリティ」にエージェントを割り当てて作業させ、4種類の作業エネルギー(🔥本能・👁洞察・❤愛着・⛓抑圧)を集めます。</p>
     <ul>
       <li>エージェントカードをクリックして選択し、アブノーマリティのセルをクリックすると割り当てられます(1セル最大3人)。</li>
-      <li>「次のフェーズへ進める」ボタンで作業を解決します。1日は3フェーズで、フェーズ終了時に日次決算(ノルマ判定)が行われます。</li>
-      <li>作業に失敗し続けるとアブノーマリティの封印カウンター(Qliphothカウンター)が減り、0になると「収容違反(脱走)」を起こします。</li>
+      <li>「次のフェーズへ進める」ボタンで作業を解決します。作業結果は◎Good/○Normal/×Badの3段階で判定され、Goodほど多くエネルギーを獲得できます。1日は3フェーズで、フェーズ終了時に日次決算モーダルでノルマ達成状況が表示されます。</li>
+      <li>Badエンドが続くとアブノーマリティの封印カウンター(Qliphothカウンター)が減り、0になると「収容違反(脱走)」を起こして画面上部に警報バナーが出ます。</li>
       <li>脱走中はエージェントを割り当てて鎮圧しないと、待機中のエージェントがランダムに襲撃されます。鎮圧には「本能・洞察・愛着・抑圧」とは別の「戦闘」ステータスを使います。</li>
       <li>本日のノルマを4種類とも満たすと信頼度が上がり、満たせないと下がります。信頼度が0になる、またはエージェントが全滅すると運営終了です。</li>
       <li>エンケファリンで新規エージェントの雇用や、負傷したエージェントの休養処置ができます。</li>
@@ -126,6 +128,21 @@
     <h2>更新履歴</h2>
     <div id="changelog-list"></div>
     <div class="modal-close-row"><button id="changelog-close">閉じる</button></div>
+  </div>
+</div>
+
+<!-- 日次決算モーダル -->
+<div class="modal-overlay" id="dayreport-modal">
+  <div class="modal-box">
+    <h2>Day <span id="dayreport-day">-</span> 決算報告</h2>
+    <div id="dayreport-verdict" class="dayreport-verdict-ok">-</div>
+    <div id="dayreport-list"></div>
+    <div class="dayreport-summary">
+      <span>信頼度 <span id="dayreport-rep">-</span></span>
+      <span>収入 <span id="dayreport-coin">-</span>En</span>
+    </div>
+    <div id="dayreport-newabno" class="dayreport-newabno" hidden></div>
+    <div class="modal-close-row"><button id="dayreport-close">続ける</button></div>
   </div>
 </div>
 

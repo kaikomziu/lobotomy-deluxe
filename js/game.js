@@ -78,6 +78,7 @@ function createNewState() {
     startedAt: Date.now(),
     gameOver: false,
     endReason: null,
+    dayReport: null,
     // ラン内集計(実績判定用)
     stats: {
       totalEnergyThisRun: 0,
@@ -236,6 +237,7 @@ function nextPhase() {
   render();
 }
 
+// 作業結果はGood(◎)/Normal(○)/Bad(×)の3段階(本家のワークエンド判定を踏襲)
 function resolveWorkPhase(cell) {
   const abno = cell.abno;
   const p = TIER_PARAMS[abno.tier];
@@ -243,14 +245,28 @@ function resolveWorkPhase(cell) {
     const emp = state.employees.find(e => e.id === empId);
     if (!emp || !emp.alive) return;
     const type = abno.types[Math.floor(Math.random() * abno.types.length)];
+    const wt = WORKTYPES.find(w => w.key === type);
     const statVal = emp.stats[type];
     const chance = clamp(50 + (statVal - p.difficulty) * 10, 5, 95);
     const roll = Math.random() * 100;
-    const badEndingChance = 3 + abno.tier * 2;
-    const badRoll = Math.random() * 100;
 
-    if (roll <= chance) {
-      // 成功
+    let outcome;
+    if (roll <= chance * 0.4) outcome = 'good';
+    else if (roll <= chance) outcome = 'normal';
+    else outcome = 'bad';
+
+    if (outcome === 'good') {
+      const gained = Math.round(p.energy * 1.5);
+      state.energy[type] += gained;
+      state.stats.totalEnergyThisRun += gained;
+      meta.totalEnergyAllTime += gained;
+      if (Math.random() < 0.3 && emp.stats[type] < 9) {
+        emp.stats[type]++;
+        if (emp.stats[type] > meta.maxStatSeen) meta.maxStatSeen = emp.stats[type];
+      }
+      emp.sp = clamp(emp.sp + 3, 0, emp.maxSp);
+      addLog(state, `◎ ${emp.name}が「${abno.name}」の作業(${wt.icon}${wt.label})でGoodエンド。+${gained}`);
+    } else if (outcome === 'normal') {
       const gained = p.energy;
       state.energy[type] += gained;
       state.stats.totalEnergyThisRun += gained;
@@ -260,26 +276,23 @@ function resolveWorkPhase(cell) {
         if (emp.stats[type] > meta.maxStatSeen) meta.maxStatSeen = emp.stats[type];
       }
       emp.sp = clamp(emp.sp - 2, 0, emp.maxSp);
-      addLog(state, `${emp.name}が「${abno.name}」の作業(${WORKTYPES.find(w=>w.key===type).label})に成功。+${gained}`);
+      addLog(state, `○ ${emp.name}が「${abno.name}」の作業(${wt.icon}${wt.label})でNormalエンド。+${gained}`);
     } else {
       emp.sp = clamp(emp.sp - 10, 0, emp.maxSp);
-      if (Math.random() < 0.15 + abno.tier * 0.03) {
-        const dmg = 5 + abno.tier * 3;
+      const counterLossChance = 15 + abno.tier * 5;
+      const hurtRoll = Math.random() * 100;
+      if (hurtRoll < counterLossChance) {
+        cell.counter--;
+        const dmg = 8 + abno.tier * 4;
         emp.hp = clamp(emp.hp - dmg, 0, emp.maxHp);
-        addLog(state, `${emp.name}が「${abno.name}」の作業に失敗し負傷した。(HP-${dmg})`);
+        emp.sp = clamp(emp.sp - 10, 0, emp.maxSp);
+        addLog(state, `× ${emp.name}が「${abno.name}」の作業でBadエンド。封印カウンターが減少した。(残り${Math.max(cell.counter,0)}, HP-${dmg})`);
       } else {
-        addLog(state, `${emp.name}が「${abno.name}」の作業に失敗した。`);
+        addLog(state, `× ${emp.name}が「${abno.name}」の作業でBadエンドに終わった。`);
       }
     }
 
     if (emp.sp <= 0 && !state.stats.sawZeroSp) state.stats.sawZeroSp = true;
-
-    if (badRoll < badEndingChance) {
-      cell.counter--;
-      emp.hp = clamp(emp.hp - 15, 0, emp.maxHp);
-      emp.sp = clamp(emp.sp - 15, 0, emp.maxSp);
-      addLog(state, `【異変】「${abno.name}」の様子がおかしい…封印カウンターが減少した。(残り${Math.max(cell.counter,0)})`);
-    }
   });
 
   if (cell.counter <= 0) {
@@ -372,20 +385,29 @@ function checkGameOverConditions() {
 }
 
 function endDay() {
-  let allMet = true;
+  const report = { day: state.day, results: [], allMet: true, repDelta: 0, coinGained: 0, newAbnoName: null };
+
   WORKTYPES.forEach(w => {
-    if (state.energy[w.key] >= state.quota[w.key]) {
+    const got = state.energy[w.key];
+    const need = state.quota[w.key];
+    const met = got >= need;
+    if (met) {
       state.reputation = clamp(state.reputation + 3, 0, 200);
+      report.repDelta += 3;
     } else {
       state.reputation = clamp(state.reputation - 8, 0, 200);
-      allMet = false;
+      report.repDelta -= 8;
+      report.allMet = false;
     }
+    report.results.push({ key: w.key, label: w.label, icon: w.icon, color: w.color, got, need, met });
   });
+
   const dayCoin = Math.floor(Object.values(state.energy).reduce((a, b) => a + b, 0) * 0.4) + 5;
   state.coin += dayCoin;
+  report.coinGained = dayCoin;
   addLog(state, `【日次決算】Day${state.day}終了。信頼度:${state.reputation} / 収入+${dayCoin}エンケファリン`);
 
-  if (allMet) { state.stats.quotaStreak++; }
+  if (report.allMet) { state.stats.quotaStreak++; }
   else { state.stats.quotaStreak = 0; }
 
   // リセット
@@ -397,9 +419,14 @@ function endDay() {
 
   // 新規搬入(3日おき)
   if (state.day % 3 === 0) {
+    const beforeCount = state.deliveredIds.length;
     deliverAbnormality(state);
+    if (state.deliveredIds.length > beforeCount) {
+      report.newAbnoName = ABNORMALITIES.find(a => a.id === state.deliveredIds[state.deliveredIds.length - 1]).name;
+    }
   }
   computeQuota(state);
+  state.dayReport = report;
 
   // 生存エージェントの自然回復
   state.employees.forEach(e => {

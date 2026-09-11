@@ -103,6 +103,22 @@ header#top-bar h1 {
 
 .header-actions { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
 
+#breach-alert {
+  background: linear-gradient(90deg, #3a0a0a, #5a0f0f, #3a0a0a);
+  border: 1px solid var(--danger);
+  color: #ffdada;
+  font-weight: bold;
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  animation: breach-flash 1s infinite;
+}
+@keyframes breach-flash {
+  0%, 100% { box-shadow: 0 0 6px rgba(255,77,77,0.3); }
+  50% { box-shadow: 0 0 20px rgba(255,77,77,0.8); }
+}
+
 #quota-panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -140,26 +156,50 @@ section.panel {
 }
 .panel-header h2 { font-size: 0.95rem; margin: 0; color: var(--muted); letter-spacing: 0.05em; }
 
-/* ---------- 収容体セル ---------- */
+/* ---------- 施設フロア図(本家のエレベーター断面風レイアウト) ---------- */
 #cells-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
 }
+.floor-row {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: repeating-linear-gradient(180deg, #101217, #101217 1px, #14161c 1px, #14161c 2px);
+}
+.floor-row:last-child { border-bottom: none; }
+.floor-label {
+  flex-shrink: 0;
+  width: 66px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: #0c0d11;
+  border-right: 1px solid var(--border);
+  padding: 6px 2px;
+}
+.floor-num { font-weight: bold; color: var(--accent2); font-size: 0.9rem; letter-spacing: 0.03em; }
+.floor-dept { font-size: 0.6rem; color: var(--muted); text-align: center; line-height: 1.2; }
+.floor-content { flex: 1; padding: 8px; min-width: 0; }
+
 .cell {
   border: 1.5px solid var(--border);
   border-radius: 8px;
   padding: 10px;
   background: #12141a;
   cursor: pointer;
-  min-height: 150px;
+  min-height: 120px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   transition: transform 0.1s, box-shadow 0.15s;
 }
 .cell:hover { transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,0.4); }
-.cell-empty { align-items: center; justify-content: center; cursor: default; opacity: 0.5; }
+.cell-empty { align-items: center; justify-content: center; cursor: default; opacity: 0.5; min-height: 60px; }
 .cell-empty:hover { transform: none; box-shadow: none; }
 .cell-empty-label { color: var(--muted); font-size: 0.85rem; }
 .cell-breached {
@@ -270,6 +310,23 @@ section.panel {
 .changelog-changes { margin: 4px 0 0 18px; font-size: 0.85rem; }
 
 .help-body p, .help-body li { line-height: 1.7; font-size: 0.9rem; }
+
+/* ---------- 日次決算モーダル ---------- */
+#dayreport-verdict { text-align: center; font-weight: bold; font-size: 1.1rem; margin: 6px 0 14px; padding: 8px; border-radius: 8px; }
+.dayreport-verdict-ok { color: var(--ok); background: #10281c; border: 1px solid var(--ok); }
+.dayreport-verdict-ng { color: var(--danger); background: #2a1010; border: 1px solid var(--danger); }
+.dayreport-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px; border-radius: 6px; margin-bottom: 6px; font-size: 0.9rem;
+  border: 1px solid var(--border);
+}
+.dayreport-row.dr-met { border-color: var(--ok); }
+.dayreport-row.dr-unmet { border-color: var(--danger); }
+.dr-mark { font-weight: bold; }
+.dr-met .dr-mark { color: var(--ok); }
+.dr-unmet .dr-mark { color: var(--danger); }
+.dayreport-summary { display: flex; justify-content: space-around; margin-top: 12px; font-size: 0.95rem; font-weight: bold; }
+.dayreport-newabno { margin-top: 12px; text-align: center; color: var(--accent2); font-size: 0.85rem; border: 1px dashed var(--accent2); border-radius: 6px; padding: 6px; }
 
 /* ---------- ゲームオーバー ---------- */
 #gameover-modal .modal-box { text-align: center; }

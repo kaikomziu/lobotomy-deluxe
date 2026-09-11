@@ -10,17 +10,22 @@ const TIERS = [
 ];
 
 const WORKTYPES = [
-  { key: 'instinct',    label: '本能', color: '#ff5c5c' },
-  { key: 'insight',     label: '洞察', color: '#4da3ff' },
-  { key: 'attachment',  label: '愛着', color: '#ffd24d' },
-  { key: 'repression',  label: '抑圧', color: '#e8e8e8' },
+  { key: 'instinct',    label: '本能', color: '#ff5c5c', icon: '🔥' },
+  { key: 'insight',     label: '洞察', color: '#4da3ff', icon: '👁' },
+  { key: 'attachment',  label: '愛着', color: '#ffd24d', icon: '❤' },
+  { key: 'repression',  label: '抑圧', color: '#e8e8e8', icon: '⛓' },
 ];
 
-// カバラの生命の樹に由来する部署名(本家に倣った配属フレーバー)
+// カバラの生命の樹に由来する部署名(本家に倣った配属フレーバー)。
+// 配列の並び順=施設のフロア順(マルクトが最上階=B1、ケテルが最深部)としても使う。
 const SEPHIROT_DEPARTMENTS = [
   'マルクト', 'イェソド', 'ホド', 'ネツァク', 'ティファレト',
   'ゲブラー', 'ケセド', 'ビナー', 'ホクマー', 'ケテル',
 ];
+
+function floorLabel(index) {
+  return { num: 'B' + (index + 1), dept: SEPHIROT_DEPARTMENTS[index % SEPHIROT_DEPARTMENTS.length] };
+}
 
 function tierInfo(tierNum) {
   return TIERS[tierNum - 1];

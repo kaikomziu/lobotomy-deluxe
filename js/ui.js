@@ -43,11 +43,15 @@ document.addEventListener('DOMContentLoaded', () => {
     el('gameover-modal').classList.remove('open');
     showTitleScreen(!!localStorage.getItem(SAVE_KEY));
   });
+  el('dayreport-close').addEventListener('click', () => el('dayreport-modal').classList.remove('open'));
 });
+
+let lastShownDayReportDay = null;
 
 function render() {
   if (!state) return;
   renderHeader();
+  renderBreachAlert();
   renderCells();
   renderEmployees();
   renderLog();
@@ -55,9 +59,24 @@ function render() {
     showAchievementToast(newlyUnlocked);
     newlyUnlocked = [];
   }
+  if (state.dayReport && state.dayReport.day !== lastShownDayReportDay) {
+    lastShownDayReportDay = state.dayReport.day;
+    renderDayReportModal(state.dayReport);
+  }
   if (state.gameOver) {
     renderGameOverModal();
   }
+}
+
+function renderBreachAlert() {
+  const banner = el('breach-alert');
+  const breached = state.cells.filter(c => c.abno && c.breached);
+  if (breached.length === 0) {
+    banner.hidden = true;
+    return;
+  }
+  banner.hidden = false;
+  banner.innerHTML = `⚠ 収容違反発生中: ${breached.map(c => esc(c.abno.name)).join('、')}`;
 }
 
 function renderHeader() {
@@ -79,7 +98,7 @@ function renderHeader() {
     const div = document.createElement('div');
     div.className = 'quota-item';
     div.innerHTML = `
-      <div class="quota-label" style="color:${w.color}">${w.label}</div>
+      <div class="quota-label" style="color:${w.color}">${w.icon} ${w.label}</div>
       <div class="quota-bar"><div class="quota-bar-fill" style="width:${pct}%;background:${w.color}"></div></div>
       <div class="quota-num">${cur} / ${q}</div>
     `;
@@ -90,13 +109,27 @@ function renderHeader() {
 function renderCells() {
   const wrap = el('cells-grid');
   wrap.innerHTML = '';
-  state.cells.forEach(cell => {
+  state.cells.forEach((cell, index) => {
+    const floor = floorLabel(index);
+    const row = document.createElement('div');
+    row.className = 'floor-row';
+
+    const floorCol = document.createElement('div');
+    floorCol.className = 'floor-label';
+    floorCol.innerHTML = `<span class="floor-num">${floor.num}</span><span class="floor-dept">${esc(floor.dept)}部</span>`;
+    row.appendChild(floorCol);
+
+    const content = document.createElement('div');
+    content.className = 'floor-content';
+
     const div = document.createElement('div');
     div.className = 'cell';
     if (!cell.abno) {
       div.classList.add('cell-empty');
       div.innerHTML = `<div class="cell-empty-label">空室</div>`;
-      wrap.appendChild(div);
+      content.appendChild(div);
+      row.appendChild(content);
+      wrap.appendChild(row);
       return;
     }
     const abno = cell.abno;
@@ -106,7 +139,7 @@ function renderCells() {
 
     const typeBadges = abno.types.map(t => {
       const wt = WORKTYPES.find(w => w.key === t);
-      return `<span class="type-badge" style="background:${wt.color}22;color:${wt.color};border-color:${wt.color}">${wt.label}</span>`;
+      return `<span class="type-badge" style="background:${wt.color}22;color:${wt.color};border-color:${wt.color}">${wt.icon} ${wt.label}</span>`;
     }).join('');
 
     const counterPips = cell.breached
@@ -129,7 +162,9 @@ function renderCells() {
       <div class="assigned-list">${assignedNames || '<span class="assigned-empty">未割当</span>'}</div>
     `;
     div.addEventListener('click', () => window.LobotomyGame.toggleAssign(cell.id));
-    wrap.appendChild(div);
+    content.appendChild(div);
+    row.appendChild(content);
+    wrap.appendChild(row);
   });
 }
 
@@ -147,8 +182,8 @@ function renderEmployees() {
     const assignedCell = state.cells.find(c => c.assigned.includes(emp.id));
     if (assignedCell) div.classList.add('employee-busy');
 
-    const statSpans = WORKTYPES.map(w => `<span class="stat-chip" style="color:${w.color}">${w.label}${emp.stats[w.key]}</span>`).join('')
-      + `<span class="stat-chip stat-chip-combat">戦闘${emp.combat}</span>`;
+    const statSpans = WORKTYPES.map(w => `<span class="stat-chip" style="color:${w.color}">${w.icon}${emp.stats[w.key]}</span>`).join('')
+      + `<span class="stat-chip stat-chip-combat">⚔${emp.combat}</span>`;
 
     div.innerHTML = `
       <div class="emp-name-row">
@@ -183,6 +218,28 @@ function renderLog() {
   wrap.innerHTML = state.log.slice(0, 60).map(entry =>
     `<div class="log-entry"><span class="log-tag">D${entry.day}-${entry.phase}</span>${esc(entry.msg)}</div>`
   ).join('');
+}
+
+function renderDayReportModal(report) {
+  el('dayreport-day').textContent = report.day;
+  el('dayreport-verdict').textContent = report.allMet ? '本日のノルマ達成' : '本日のノルマ未達成';
+  el('dayreport-verdict').className = report.allMet ? 'dayreport-verdict-ok' : 'dayreport-verdict-ng';
+
+  const list = el('dayreport-list');
+  list.innerHTML = report.results.map(r => `
+    <div class="dayreport-row ${r.met ? 'dr-met' : 'dr-unmet'}">
+      <span class="dr-icon" style="color:${r.color}">${r.icon} ${r.label}</span>
+      <span class="dr-num">${r.got} / ${r.need}</span>
+      <span class="dr-mark">${r.met ? '✓' : '✗'}</span>
+    </div>
+  `).join('');
+
+  el('dayreport-rep').textContent = (report.repDelta >= 0 ? '+' : '') + report.repDelta;
+  el('dayreport-coin').textContent = '+' + report.coinGained;
+  el('dayreport-newabno').textContent = report.newAbnoName ? `新規搬入: ${report.newAbnoName}` : '';
+  el('dayreport-newabno').hidden = !report.newAbnoName;
+
+  el('dayreport-modal').classList.add('open');
 }
 
 function renderAchievementsModal() {
