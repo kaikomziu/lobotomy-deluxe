@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LOBOTOMY DELUXE - 収容体管理シミュレーター</title>
-<meta name="description" content="謎の収容体を職員に管理させ、エネルギーを稼ぎながら施設を運営するブラウザ管理シム「LOBOTOMY DELUXE」。">
+<title>LOBOTOMY DELUXE - アブノーマリティ管理シミュレーター</title>
+<meta name="description" content="謎のアブノーマリティをエージェントに管理させ、エネルギーを稼ぎながら施設を運営するブラウザ管理シム「LOBOTOMY DELUXE」。">
 <link rel="canonical" href="https://kaikomziu.github.io/lobotomy-deluxe/">
-<meta property="og:title" content="LOBOTOMY DELUXE - 収容体管理シミュレーター">
-<meta property="og:description" content="謎の収容体を職員に管理させ、エネルギーを稼ぎながら施設を運営するブラウザ管理シム。">
+<meta property="og:title" content="LOBOTOMY DELUXE - アブノーマリティ管理シミュレーター">
+<meta property="og:description" content="謎のアブノーマリティをエージェントに管理させ、エネルギーを稼ぎながら施設を運営するブラウザ管理シム。">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://kaikomziu.github.io/lobotomy-deluxe/">
 <link rel="stylesheet" href="css/style.css">
@@ -17,14 +17,17 @@
 <div id="title-screen">
   <h1>LOBOTOMY DELUXE</h1>
   <p class="subtitle">
-    謎の「収容体」を職員に管理させ、作業エネルギーを取り出して施設を運営するシミュレーターです。<br>
-    管理を怠ると収容体は脱走し、職員に牙を剥きます。
+    謎の「アブノーマリティ」をエージェントに管理させ、作業エネルギーを取り出して施設を運営するシミュレーターです。<br>
+    管理を怠るとアブノーマリティは脱走し、エージェントに牙を剥きます。
   </p>
   <div class="title-buttons">
     <button id="new-game-btn">新規運営を開始</button>
     <button id="continue-btn" style="display:none;">続きから</button>
   </div>
   <div id="best-day-label"></div>
+  <div class="title-buttons">
+    <button id="title-tutorial-btn" class="tutorial-cta">📘 チュートリアルを見る</button>
+  </div>
   <div class="title-buttons">
     <button id="help-btn">遊び方</button>
     <button id="achv-btn">実績一覧</button>
@@ -42,9 +45,10 @@
       <span class="stat-value" id="stat-reputation">100</span>
       <div class="bar-outline"><div class="bar-fill bar-ok" id="reputation-bar-fill" style="width:66%"></div></div>
     </div>
-    <div class="stat-block"><span class="stat-label">コイン</span><span class="stat-value" id="stat-coin">0</span></div>
+    <div class="stat-block"><span class="stat-label">エンケファリン</span><span class="stat-value" id="stat-coin">0</span></div>
     <div class="header-actions">
       <button id="hire-btn">雇用する</button>
+      <button id="tutorial-btn">📘 チュートリアル</button>
       <button id="achv-btn2" onclick="document.getElementById('achv-btn').click()">実績</button>
       <button id="help-btn2" onclick="document.getElementById('help-btn').click()">遊び方</button>
       <button id="retire-btn">運営終了</button>
@@ -59,7 +63,7 @@
   <main id="layout">
     <section class="panel">
       <div class="panel-header">
-        <h2>収容施設 - 職員を選んでからセルをクリックして割り当て</h2>
+        <h2>収容施設 - エージェントを選んでからセルをクリックして割り当て</h2>
       </div>
       <div id="cells-grid"></div>
 
@@ -71,7 +75,7 @@
 
     <section class="panel">
       <div class="panel-header">
-        <h2>在籍職員 (<span id="roster-count">0</span>)</h2>
+        <h2>在籍エージェント (<span id="roster-count">0</span>)</h2>
       </div>
       <div id="roster-wrap">
         <div id="employee-list"></div>
@@ -83,23 +87,24 @@
     <button id="next-phase-btn">次のフェーズへ進める ▶</button>
   </div>
 
-  <footer id="page-footer">LOBOTOMY DELUXE - オリジナル収容体管理シミュレーター</footer>
+  <footer id="page-footer">LOBOTOMY DELUXE - オリジナルアブノーマリティ管理シミュレーター</footer>
 </div>
 
 <div id="toast-wrap"></div>
+<div id="tutorial-root"></div>
 
 <!-- 遊び方モーダル -->
 <div class="modal-overlay" id="help-modal">
   <div class="modal-box help-body">
     <h2>遊び方</h2>
-    <p>あなたは謎の施設の管理官です。収容されている「収容体」に職員を割り当てて作業させ、4種類の作業エネルギー(本能・洞察・愛着・抑圧)を集めます。</p>
+    <p>あなたは謎の施設の管理官です。収容されている「アブノーマリティ」にエージェントを割り当てて作業させ、4種類の作業エネルギー(本能・洞察・愛着・抑圧)を集めます。</p>
     <ul>
-      <li>職員カードをクリックして選択し、収容体のセルをクリックすると割り当てられます(1セル最大3人)。</li>
+      <li>エージェントカードをクリックして選択し、アブノーマリティのセルをクリックすると割り当てられます(1セル最大3人)。</li>
       <li>「次のフェーズへ進める」ボタンで作業を解決します。1日は3フェーズで、フェーズ終了時に日次決算(ノルマ判定)が行われます。</li>
-      <li>作業に失敗し続けると収容体の封印カウンターが減り、0になると「収容違反(脱走)」を起こします。</li>
-      <li>脱走中は職員を割り当てて鎮圧しないと、待機中の職員がランダムに襲撃されます。</li>
-      <li>本日のノルマを4種類とも満たすと信頼度が上がり、満たせないと下がります。信頼度が0になる、または職員が全滅すると運営終了です。</li>
-      <li>コインで新規職員の雇用や、負傷した職員の休養処置ができます。</li>
+      <li>作業に失敗し続けるとアブノーマリティの封印カウンター(Qliphothカウンター)が減り、0になると「収容違反(脱走)」を起こします。</li>
+      <li>脱走中はエージェントを割り当てて鎮圧しないと、待機中のエージェントがランダムに襲撃されます。鎮圧には「本能・洞察・愛着・抑圧」とは別の「戦闘」ステータスを使います。</li>
+      <li>本日のノルマを4種類とも満たすと信頼度が上がり、満たせないと下がります。信頼度が0になる、またはエージェントが全滅すると運営終了です。</li>
+      <li>エンケファリンで新規エージェントの雇用や、負傷したエージェントの休養処置ができます。</li>
       <li>いつでも「運営終了」で自主的に終了し、記録を確定できます。</li>
     </ul>
     <div class="modal-close-row"><button id="help-close">閉じる</button></div>
@@ -143,6 +148,7 @@
 <script src="js/data.js"></script>
 <script src="js/game.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/tutorial.js"></script>
 <script src="js/version.js"></script>
 </body>
 </html>

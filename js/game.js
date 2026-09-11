@@ -28,6 +28,8 @@ function loadMeta() {
     totalRests: 0,
     uniqueContained: [],
     maxStatSeen: 0,
+    maxCombatSeen: 0,
+    tutorialSeen: false,
     unlocked: [],
   };
 }
@@ -35,7 +37,7 @@ function saveMeta() {
   try { localStorage.setItem(META_KEY, JSON.stringify(meta)); } catch (e) { /* ignore */ }
 }
 
-// ---------- 職員生成 ----------
+// ---------- エージェント生成 ----------
 function randomEmployee() {
   const surname = SURNAMES[Math.floor(Math.random() * SURNAMES.length)];
   const given = GIVEN_NAMES[Math.floor(Math.random() * GIVEN_NAMES.length)];
@@ -44,7 +46,9 @@ function randomEmployee() {
   return {
     id: nextId(),
     name: surname + ' ' + given,
+    department: SEPHIROT_DEPARTMENTS[Math.floor(Math.random() * SEPHIROT_DEPARTMENTS.length)],
     stats,
+    combat: 2 + Math.floor(Math.random() * 3), // 鎮圧(戦闘)専用ステータス。2-4
     hp: 100, maxHp: 100,
     sp: 100, maxSp: 100,
     alive: true,
@@ -150,7 +154,7 @@ function deliverAbnormality(s) {
   target.breachReq = p.suppressReq;
   target.assigned = [];
   s.deliveredIds.push(abno.id);
-  addLog(s, `【搬入】新たな収容体「${abno.name}」(${tierInfo(abno.tier).label})が搬入されました。`);
+  addLog(s, `【搬入】新たなアブノーマリティ「${abno.name}」(${tierInfo(abno.tier).label})が搬入されました。`);
   computeQuota(s);
 }
 
@@ -300,11 +304,15 @@ function resolveBreachPhase(cell) {
     cell.assigned.forEach(empId => {
       const emp = state.employees.find(e => e.id === empId);
       if (!emp || !emp.alive) return;
-      const statVal = emp.stats['instinct'];
+      const statVal = emp.combat;
       const chance = clamp(45 + (statVal - (p.difficulty + 2)) * 10, 5, 90);
       const roll = Math.random() * 100;
       if (roll <= chance) {
         successes++;
+        if (Math.random() < 0.2 && emp.combat < 9) {
+          emp.combat++;
+          if (emp.combat > meta.maxCombatSeen) meta.maxCombatSeen = emp.combat;
+        }
         addLog(state, `${emp.name}が「${abno.name}」の鎮圧に成功した！`);
       } else {
         const dmg = Math.round(p.breachPower * 0.5);
@@ -375,7 +383,7 @@ function endDay() {
   });
   const dayCoin = Math.floor(Object.values(state.energy).reduce((a, b) => a + b, 0) * 0.4) + 5;
   state.coin += dayCoin;
-  addLog(state, `【日次決算】Day${state.day}終了。信頼度:${state.reputation} / 収入+${dayCoin}コイン`);
+  addLog(state, `【日次決算】Day${state.day}終了。信頼度:${state.reputation} / 収入+${dayCoin}エンケファリン`);
 
   if (allMet) { state.stats.quotaStreak++; }
   else { state.stats.quotaStreak = 0; }
@@ -393,7 +401,7 @@ function endDay() {
   }
   computeQuota(state);
 
-  // 生存職員の自然回復
+  // 生存エージェントの自然回復
   state.employees.forEach(e => {
     if (e.alive) {
       e.sp = clamp(e.sp + 15, 0, e.maxSp);
@@ -414,7 +422,7 @@ function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 function hireEmployee() {
   if (state.gameOver) return;
   const cost = 20 + state.employees.length * 15;
-  if (state.coin < cost) { addLog(state, `【人事】資金が足りず雇用できません。(必要:${cost}コイン)`); render(); return; }
+  if (state.coin < cost) { addLog(state, `【人事】資金が足りず雇用できません。(必要:${cost}エンケファリン)`); render(); return; }
   state.coin -= cost;
   const emp = randomEmployee();
   state.employees.push(emp);
@@ -430,7 +438,7 @@ function restEmployee(empId) {
   const emp = state.employees.find(e => e.id === empId);
   if (!emp || !emp.alive) return;
   const cost = 15;
-  if (state.coin < cost) { addLog(state, `【厚生】資金が足りず休養処置ができません。(必要:${cost}コイン)`); render(); return; }
+  if (state.coin < cost) { addLog(state, `【厚生】資金が足りず休養処置ができません。(必要:${cost}エンケファリン)`); render(); return; }
   state.coin -= cost;
   emp.hp = emp.maxHp;
   emp.sp = emp.maxSp;
@@ -464,6 +472,7 @@ function buildAggregateStats() {
   const containedTierMax = state.cells.reduce((m, c) => c.abno ? Math.max(m, c.abno.tier) : m, 0);
   const alephConcurrent = state.cells.filter(c => c.abno && c.abno.tier === 5 && !c.breached).length;
   const maxBreachOnSame = Object.values(state.stats.breachCountByAbno).reduce((a, b) => Math.max(a, b), 0);
+  const deptCoverage = new Set(state.employees.filter(e => e.alive).map(e => e.department)).size;
   return {
     day: state.day,
     reputation: state.reputation,
@@ -481,6 +490,9 @@ function buildAggregateStats() {
     containedTierMax,
     alephConcurrent,
     maxStatSeen: meta.maxStatSeen,
+    maxCombatSeen: meta.maxCombatSeen,
+    deptCoverage,
+    tutorialDone: meta.tutorialSeen,
     currentRoster: state.employees.filter(e => e.alive).length,
     maxBreachOnSame,
     simulBreach: state.stats.simulBreachMax,
@@ -532,15 +544,25 @@ function loadGame() {
 function startNewGame() {
   state = createNewState();
   deliverAbnormality(state); // 開始時点で1体追加搬入(合計4体)
-  addLog(state, '施設の運営を開始します。職員を割り当てて収容体から作業エネルギーを取り出してください。');
+  addLog(state, '施設の運営を開始します。エージェントを割り当ててアブノーマリティから作業エネルギーを取り出してください。');
   saveGame();
   render();
+  if (window.Tutorial && !meta.tutorialSeen) {
+    window.Tutorial.start(false);
+  }
 }
 
 function continueGame() {
   const loaded = loadGame();
   if (loaded) { state = loaded; render(); return true; }
   return false;
+}
+
+function markTutorialSeen() {
+  meta.tutorialSeen = true;
+  saveMeta();
+  runAchievementCheck();
+  render();
 }
 
 window.LobotomyGame = {
@@ -557,4 +579,5 @@ window.LobotomyGame = {
   hireEmployee,
   restEmployee,
   retireGame,
+  markTutorialSeen,
 };

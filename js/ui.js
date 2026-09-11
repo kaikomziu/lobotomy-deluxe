@@ -111,7 +111,7 @@ function renderCells() {
 
     const counterPips = cell.breached
       ? `<div class="breach-progress">鎮圧進捗 ${cell.breachProgress} / ${cell.breachReq}</div>`
-      : `<div class="counter-pips">${'●'.repeat(Math.max(cell.counter,0))}${'○'.repeat(Math.max(cell.maxCounter - cell.counter,0))}</div>`;
+      : `<div class="qliphoth-row"><span class="qliphoth-label">Qliphoth</span><span class="counter-pips">${'●'.repeat(Math.max(cell.counter,0))}${'○'.repeat(Math.max(cell.maxCounter - cell.counter,0))}</span></div>`;
 
     const assignedNames = cell.assigned.map(id => {
       const e = state.employees.find(x => x.id === id);
@@ -147,12 +147,13 @@ function renderEmployees() {
     const assignedCell = state.cells.find(c => c.assigned.includes(emp.id));
     if (assignedCell) div.classList.add('employee-busy');
 
-    const statSpans = WORKTYPES.map(w => `<span class="stat-chip" style="color:${w.color}">${w.label}${emp.stats[w.key]}</span>`).join('');
+    const statSpans = WORKTYPES.map(w => `<span class="stat-chip" style="color:${w.color}">${w.label}${emp.stats[w.key]}</span>`).join('')
+      + `<span class="stat-chip stat-chip-combat">戦闘${emp.combat}</span>`;
 
     div.innerHTML = `
       <div class="emp-name-row">
         <span class="emp-name">${esc(emp.name)}</span>
-        ${!emp.alive ? '<span class="emp-dead-badge">殉職</span>' : ''}
+        ${!emp.alive ? '<span class="emp-dead-badge">殉職</span>' : `<span class="emp-dept">${esc(emp.department)}部</span>`}
       </div>
       <div class="emp-bars">
         <div class="mini-bar"><div class="mini-bar-fill hp" style="width:${emp.hp}%"></div><span class="mini-bar-label">HP ${emp.hp}</span></div>
@@ -160,7 +161,7 @@ function renderEmployees() {
       </div>
       <div class="emp-stats">${statSpans}</div>
       <div class="emp-quote">${esc(emp.quote)}</div>
-      ${emp.alive ? `<button class="rest-btn" data-id="${emp.id}">休養(15c)</button>` : ''}
+      ${emp.alive ? `<button class="rest-btn" data-id="${emp.id}">休養(15En)</button>` : ''}
     `;
     if (emp.alive) {
       div.addEventListener('click', (e) => {
@@ -214,7 +215,7 @@ function showAchievementToast(list) {
 function renderGameOverModal() {
   const reasonText = {
     reputation: '信頼度が0に達し、施設は閉鎖されました。',
-    wipeout: '職員が全員いなくなり、施設の運営は破綻しました。',
+    wipeout: 'エージェントが全員いなくなり、施設の運営は破綻しました。',
     retire: '円満に運営を終了しました。お疲れ様でした。',
   }[state.endReason] || '運営が終了しました。';
 
